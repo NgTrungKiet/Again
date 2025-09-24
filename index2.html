@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Epic Love Journey 3D</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: radial-gradient(circle at center, #000000 30%, #1a0000 100%);
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Arial', sans-serif;
+      color: white;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Centered scroll gallery */
+    .gallery {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 2s ease;
+    }
+    .gallery-track {
+      display: flex;
+      animation: scroll 8s linear infinite;
+    }
+    .gallery img {
+      width: 250px;
+      height: 250px;
+      object-fit: cover;
+      margin: 0 20px;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(255, 0, 100, 0.7);
+    }
+    @keyframes scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* 3D Orbit */
+    .orbit-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+      opacity: 0;
+      transition: opacity 2s ease;
+    }
+    .orbit-container img {
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      object-fit: cover;
+      border-radius: 20px;
+      box-shadow: 0 0 20px rgba(255,0,100,0.7);
+      transform: translate(-50%, -50%);
+    }
+
+    /* Messages */
+    .message {
+      position: absolute;
+      font-size: 3em;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 2s ease;
+      width: 100%;
+    }
+
+    /* Final button */
+    .final-btn {
+      position: absolute;
+      bottom: 10%;
+      font-size: 1.5em;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 15px;
+      background: linear-gradient(45deg, #ff004c, #ff6680);
+      color: white;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 2s ease;
+    }
+    .final-btn:hover {
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="heart"></canvas>
+
+  <!-- Infinite scroll gallery -->
+  <div class="gallery" id="gallery">
+    <div class="gallery-track">
+      <img src="img1.jpg">
+      <img src="img2.jpg">
+      <img src="img3.jpg">
+      <img src="img10.png">
+      <img src="img11.png">
+      <img src="img9.png">
+      <img src="img11.png">
+      <!-- duplicate for smooth loop -->
+        
+    </div>
+  </div>
+
+  <!-- Orbiting 3D gallery -->
+  <div class="orbit-container" id="orbit">
+    <img src="img5.png">
+    <img src="img6.jpg">
+    <img src="img7.png">
+    <img src="img8.png">
+    <img src="img5.png">
+  </div>
+
+  <!-- Messages -->
+  <div class="message" id="msg1">❤️ Happy 2 Years and 6 Months ❤️</div>
+  <div class="message" id="msg2">💕 Hope our love lasts forever, my bé ti ti 💕</div>
+
+  <!-- Final button -->
+  <button class="final-btn" id="finalBtn" onclick="location.href='symphony.html'">Go to Surprise 💝</button>
+
+  <script>
+    /*** HEART PARTICLES ***/
+    const canvas = document.getElementById("heart");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    function heartPath(t, scale = 16) {
+      return {
+        x: 16 * Math.sin(t) ** 3 * scale,
+        y: -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * scale
+      };
+    }
+
+    let particles = [];
+    let maxParticles = 800;
+    let spawnRate = 4;
+
+    class Particle {
+      constructor(targetX, targetY) {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.tx = targetX;
+        this.ty = targetY;
+        this.size = Math.random() * 2 + 1.5;
+        this.color = `hsl(${Math.random()*20 + 340},100%,${Math.random()*40+50}%)`;
+        this.speed = Math.random() * 0.03 + 0.01;
+      }
+      update() {
+        this.x += (this.tx - this.x) * this.speed;
+        this.y += (this.ty - this.y) * this.speed;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 15;
+        ctx.fill();
+      }
+    }
+
+    function spawnParticles() {
+      for (let i = 0; i < spawnRate; i++) {
+        if (particles.length < maxParticles) {
+          let angle = Math.random() * 2 * Math.PI;
+          let {x, y} = heartPath(angle, 18 + 2*Math.sin(Date.now()/1000));
+          particles.push(new Particle(canvas.width/2 + x, canvas.height/2 + y));
+        }
+      }
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      spawnParticles();
+      for (let p of particles) {
+        p.update();
+        p.draw();
+      }
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.onresize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    /*** TIMELINE ***/
+    // After heart → show scrolling gallery (centered)
+    setTimeout(() => {
+      document.getElementById("gallery").style.opacity = 1;
+      canvas.style.display = "none";
+    }, 7000);
+
+    // After 4s of scroll → switch to orbit (3D)
+    setTimeout(() => {
+      document.getElementById("gallery").style.opacity = 0;
+      const orbit = document.getElementById("orbit");
+      orbit.style.opacity = 1;
+
+      // Animate orbit in 3D
+      const imgs = orbit.querySelectorAll("img");
+      const radius = 350;
+      function orbitAnim() {
+        const time = Date.now() / 2000;
+        imgs.forEach((img, i) => {
+          const angle = time + (i * (2 * Math.PI / imgs.length));
+          const x = Math.cos(angle) * radius;
+          const z = Math.sin(angle) * radius;
+          const scale = (z + radius) / (2 * radius) + 0.5; // depth scaling
+          img.style.transform = `translate3d(${x}px, ${Math.sin(angle*2)*40}px, ${z}px) scale(${scale})`;
+          img.style.zIndex = Math.floor(z);
+        });
+        requestAnimationFrame(orbitAnim);
+      }
+      orbitAnim();
+    }, 11000);
+
+    // Show messages after orbit
+    setTimeout(() => {
+      document.getElementById("orbit").style.opacity = 0;
+      document.getElementById("msg1").style.opacity = 1;
+    }, 19000);
+
+    setTimeout(() => {
+      document.getElementById("msg1").style.opacity = 0;
+      document.getElementById("msg2").style.opacity = 1;
+    }, 23000);
+
+    setTimeout(() => {
+      document.getElementById("finalBtn").style.opacity = 1;
+    }, 28000);
+  </script>
+</body>
+</html>

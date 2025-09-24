@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Open the Present</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+            background-size: 400% 400%;
+            animation: gentleGradient 20s ease-in-out infinite;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @keyframes gentleGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .present-button {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            border: none;
+            padding: 30px 60px;
+            font-size: 2.5em;
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            font-weight: bold;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .present-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+
+        .present-button:active {
+            transform: translateY(-2px);
+        }
+
+        .present-button.hidden {
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.8s ease;
+        }
+
+        .symphony-container {
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 2s ease;
+            background: radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%);
+        }
+
+        .symphony-container.active {
+            opacity: 1;
+        }
+
+        .particles-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .frequency-bars {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            display: flex;
+            align-items: end;
+            justify-content: space-around;
+            z-index: 3;
+            padding: 0 20px;
+        }
+
+        .bar {
+            width: 12px;
+            background: linear-gradient(to top, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4, #ffeaa7);
+            border-radius: 6px 6px 0 0;
+            transition: height 0.3s ease;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+            height: 10px;
+        }
+
+        .wave-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            z-index: 2;
+        }
+
+        .center-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 3.5em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 5;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.8);
+            opacity: 0;
+            transition: all 2s ease;
+            max-width: 90%;
+            line-height: 1.2;
+        }
+
+        .center-text.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.02);
+        }
+
+        .center-text.fade-out {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.98);
+            transition: all 1.5s ease;
+        }
+
+        .floating-notes {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .note {
+            position: absolute;
+            color: white;
+            font-size: 32px;
+            opacity: 0.9;
+            animation: float 4s ease-out forwards;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg) scale(0.5);
+                opacity: 0.9;
+            }
+            50% {
+                opacity: 1;
+                transform: translateY(-100px) rotate(180deg) scale(1);
+            }
+            100% {
+                transform: translateY(-300px) rotate(360deg) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        .gift-box {
+            position: absolute;
+            font-size: 3em;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+    </style>
+</head>
+<body>
+    <button class="present-button" id="presentButton">
+        <span class="gift-box">🎁</span>
+        Open the Present
+    </button>
+
+    <div class="symphony-container" id="symphonyContainer">
+        <canvas class="particles-canvas" id="particlesCanvas"></canvas>
+        
+        <div class="floating-notes" id="floatingNotes"></div>
+        
+        <div class="frequency-bars" id="frequencyBars"></div>
+        
+        <div class="wave-container">
+            <canvas id="waveCanvas" width="100%" height="200"></canvas>
+        </div>
+
+        <div class="center-text" id="centerText">So we are here separate by distance</div>
+    </div>
+
+    <script>
+        // Audio Context Setup
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let isPlaying = false;
+        let masterGainNode = null;
+
+        // Canvas Setup
+        const particlesCanvas = document.getElementById('particlesCanvas');
+        const particlesCtx = particlesCanvas.getContext('2d');
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+
+        function resizeCanvases() {
+            particlesCanvas.width = window.innerWidth;
+            particlesCanvas.height = window.innerHeight;
+            waveCanvas.width = window.innerWidth;
+            waveCanvas.height = 200;
+        }
+        resizeCanvases();
+        window.addEventListener('resize', resizeCanvases);
+
+        // Particles System
+        const particles = [];
+        
+        class Particle {
+            constructor(x, y, color, size, velocity = 1) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 3 * velocity;
+                this.vy = (Math.random() - 0.5) * 3 * velocity;
+                this.color = color;
+                this.size = size;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.01 + 0.005;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= this.decay;
+                this.size *= 0.998;
+                this.vy += 0.015;
+                this.vx *= 0.999;
+                this.vy *= 0.999;
+            }
+
+            draw() {
+                particlesCtx.save();
+                particlesCtx.globalAlpha = this.life * 0.8;
+                particlesCtx.fillStyle = this.color;
+                particlesCtx.beginPath();
+                particlesCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                particlesCtx.fill();
+                
+                particlesCtx.shadowColor = this.color;
+                particlesCtx.shadowBlur = 15;
+                particlesCtx.fill();
+                particlesCtx.restore();
+            }
+        }
+
+        // Color palette
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#fd79a8', '#a29bfe', '#6c5ce7'];
+
+        // Frequency Bars Setup
+        const frequencyBars = document.getElementById('frequencyBars');
+        const bars = [];
+        for (let i = 0; i < 60; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'bar';
+            frequencyBars.appendChild(bar);
+            bars.push(bar);
+        }
+
+        // Master gain node for smooth volume control
+        function setupMasterGain() {
+            masterGainNode = audioContext.createGain();
+            masterGainNode.connect(audioContext.destination);
+            masterGainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+        }
+
+        // Enhanced note playing with better synchronization
+        function playNote(frequency, duration = 2.0, startTime = 0, noteIndex = 0, intensity = 1.0) {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            const filterNode = audioContext.createBiquadFilter();
+            
+            // Audio routing
+            oscillator.connect(filterNode);
+            filterNode.connect(gainNode);
+            gainNode.connect(masterGainNode);
+            
+            // Oscillator settings for warmer sound
+            oscillator.frequency.setValueAtTime(frequency, startTime);
+            oscillator.type = 'sine';
+            
+            // Filter for warmth
+            filterNode.type = 'lowpass';
+            filterNode.frequency.setValueAtTime(800, startTime);
+            
+            // Smooth envelope
+            const peakGain = 0.3 * intensity;
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(peakGain, startTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(peakGain * 0.7, startTime + duration * 0.3);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+            
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+            
+            // Trigger visuals at the exact start time
+            setTimeout(() => {
+                if (isPlaying) {
+                    createParticlesForNote(noteIndex, intensity);
+                    animateBarsForNote(noteIndex, duration, intensity);
+                    createFloatingNoteForMelody(noteIndex);
+                }
+            }, (startTime - audioContext.currentTime) * 1000);
+        }
+
+        function createParticlesForNote(noteIndex, intensity = 1) {
+            const color = colors[noteIndex % colors.length];
+            const x = window.innerWidth / 2 + (Math.random() - 0.5) * 200;
+            const y = window.innerHeight / 2 + (Math.random() - 0.5) * 150;
+            
+            const particleCount = Math.floor(2 + intensity * 2);
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle(
+                    x + (Math.random() - 0.5) * 80,
+                    y + (Math.random() - 0.5) * 80,
+                    color,
+                    Math.random() * 4 + 2 + intensity,
+                    intensity
+                ));
+            }
+        }
+
+        function animateBarsForNote(noteIndex, duration, intensity = 1) {
+            const maxHeight = 40 + intensity * 60;
+            const centerBar = Math.floor((noteIndex * 3) % bars.length);
+            const spread = 8;
+            
+            // Animate bars in a wave pattern
+            for (let i = 0; i < bars.length; i++) {
+                const distance = Math.abs(i - centerBar);
+                const normalizedDistance = Math.min(distance / spread, 1);
+                const height = maxHeight * (1 - normalizedDistance) * (0.3 + Math.random() * 0.7);
+                
+                if (height > 15) {
+                    bars[i].style.height = height + 'px';
+                    bars[i].style.transition = 'height 0.1s ease';
+                    
+                    // Fade back down
+                    setTimeout(() => {
+                        bars[i].style.height = (10 + Math.random() * 5) + 'px';
+                        bars[i].style.transition = 'height 0.8s ease';
+                    }, duration * 200);
+                }
+            }
+        }
+
+        function createFloatingNoteForMelody(noteIndex) {
+            const notes = ['♪', '♫', '♬', '♭', '♯', '𝄞', '♩', '♮'];
+            const note = document.createElement('div');
+            note.className = 'note';
+            note.textContent = notes[noteIndex % notes.length];
+            note.style.left = (window.innerWidth / 2 + (Math.random() - 0.5) * 300) + 'px';
+            note.style.top = (window.innerHeight - 120 + Math.random() * 50) + 'px';
+            note.style.color = colors[noteIndex % colors.length];
+            
+            document.getElementById('floatingNotes').appendChild(note);
+            setTimeout(() => note.remove(), 4000);
+        }
+
+        // Wave Animation - synchronized with music
+        let waveOffset = 0;
+        let waveIntensity = 0;
+        
+        function setWaveIntensity(intensity) {
+            waveIntensity = intensity;
+        }
+
+        function drawWave() {
+            waveCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+            
+            if (isPlaying) {
+                waveCtx.beginPath();
+                waveCtx.strokeStyle = `rgba(255, 255, 255, ${0.2 + waveIntensity * 0.3})`;
+                waveCtx.lineWidth = 2 + waveIntensity * 2;
+                
+                for (let x = 0; x < waveCanvas.width; x++) {
+                    const y = Math.sin((x + waveOffset) * 0.006) * (20 + waveIntensity * 20) + 
+                             Math.sin((x + waveOffset) * 0.012) * (10 + waveIntensity * 10) + 100;
+                    if (x === 0) waveCtx.moveTo(x, y);
+                    else waveCtx.lineTo(x, y);
+                }
+                
+                waveCtx.stroke();
+                waveOffset += 1 + waveIntensity;
+            }
+        }
+
+        // Synchronized melody with perfect timing
+        const melody = [
+            // Phrase 1: "So we are here separate by distance"
+            { freq: 261.63, duration: 1.8, intensity: 0.8 }, // C4
+            { freq: 293.66, duration: 1.6, intensity: 0.9 }, // D4  
+            { freq: 329.63, duration: 1.8, intensity: 1.0 }, // E4
+            { freq: 293.66, duration: 2.0, intensity: 0.8 }, // D4
+            
+            // Phrase 2: "But still hearts in the same place"
+            { freq: 349.23, duration: 1.8, intensity: 1.0 }, // F4
+            { freq: 392.00, duration: 1.8, intensity: 1.2 }, // G4
+            { freq: 440.00, duration: 2.0, intensity: 1.3 }, // A4
+            { freq: 392.00, duration: 2.2, intensity: 1.0 }, // G4
+            
+            // Phrase 3: "I love you my dear no tear"
+            { freq: 523.25, duration: 1.8, intensity: 1.4 }, // C5
+            { freq: 493.88, duration: 1.8, intensity: 1.3 }, // B4
+            { freq: 440.00, duration: 2.0, intensity: 1.2 }, // A4
+            { freq: 392.00, duration: 2.2, intensity: 1.0 }, // G4
+            
+            // Phrase 4: "For our destiny is clear no fear"
+            { freq: 349.23, duration: 1.8, intensity: 1.1 }, // F4
+            { freq: 329.63, duration: 1.8, intensity: 1.0 }, // E4
+            { freq: 293.66, duration: 2.0, intensity: 0.9 }, // D4
+            { freq: 329.63, duration: 2.2, intensity: 1.0 }, // E4
+            
+            // Continue with remaining phrases...
+            { freq: 392.00, duration: 1.8, intensity: 1.2 }, // G4
+            { freq: 440.00, duration: 1.8, intensity: 1.3 }, // A4
+            { freq: 523.25, duration: 2.0, intensity: 1.5 }, // C5
+            { freq: 493.88, duration: 2.2, intensity: 1.2 }, // B4
+            
+            { freq: 440.00, duration: 1.8, intensity: 1.3 }, // A4
+            { freq: 392.00, duration: 1.8, intensity: 1.1 }, // G4
+            { freq: 349.23, duration: 2.0, intensity: 1.0 }, // F4
+            { freq: 329.63, duration: 2.4, intensity: 0.9 }, // E4
+            
+            { freq: 293.66, duration: 2.0, intensity: 0.8 }, // D4
+            { freq: 329.63, duration: 2.0, intensity: 1.0 }, // E4
+            { freq: 392.00, duration: 2.5, intensity: 1.2 }, // G4 - final
+        ];
+
+        const textSequence = [
+            "So we are here separate by distance",
+            "But still hearts in the same place", 
+            "I love you my dear no tear",
+            "For our destiny is clear no fear",
+            "Wherever we go no matter how far",
+            "For I know that love is bizarre", 
+            "But bear with me until we fade",
+            "Because I know it's worth the wait",
+            "All the best luck to us, my love Ha Linh"
+        ];
+
+        function playMelodyAndText() {
+            setupMasterGain();
+            
+            const startTime = audioContext.currentTime + 0.5;
+            let currentTime = startTime;
+            let noteIndex = 0;
+            
+            // Play melody notes
+            melody.forEach((note, index) => {
+                playNote(note.freq, note.duration, currentTime, index, note.intensity);
+                
+                // Update wave intensity for each note
+                setTimeout(() => {
+                    if (isPlaying) setWaveIntensity(note.intensity);
+                }, (currentTime - audioContext.currentTime) * 1000);
+                
+                currentTime += note.duration + 0.4; // Small pause between notes
+            });
+            
+            // Text transitions synchronized with melody phases
+            const textTimings = [1, 8.5, 16.8, 25.5, 34, 42.5, 51, 59.5, 68]; // Seconds from start
+            
+            textTimings.forEach((timing, index) => {
+                setTimeout(() => {
+                    showText(index);
+                }, timing * 1000);
+            });
+            
+            // End sequence
+            setTimeout(() => {
+                isPlaying = false;
+                setWaveIntensity(0);
+            }, 75000); // Stop after ~75 seconds
+        }
+
+        function showText(index) {
+            const centerText = document.getElementById('centerText');
+            
+            if (index > 0) {
+                centerText.classList.add('fade-out');
+                centerText.classList.remove('show');
+                
+                setTimeout(() => {
+                    centerText.textContent = textSequence[index];
+                    centerText.classList.remove('fade-out');
+                    centerText.classList.add('show');
+                }, 800);
+            } else {
+                centerText.textContent = textSequence[index];
+                setTimeout(() => centerText.classList.add('show'), 200);
+            }
+        }
+
+        // Animation Loop
+        function animate() {
+            particlesCtx.clearRect(0, 0, particlesCanvas.width, particlesCanvas.height);
+            
+            particles.forEach((particle, index) => {
+                particle.update();
+                particle.draw();
+                
+                if (particle.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+            
+            drawWave();
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Button Click Handler
+        document.getElementById('presentButton').addEventListener('click', async () => {
+            const button = document.getElementById('presentButton');
+            const symphonyContainer = document.getElementById('symphonyContainer');
+            
+            button.classList.add('hidden');
+            
+            setTimeout(async () => {
+                symphonyContainer.classList.add('active');
+                isPlaying = true;
+                
+                await audioContext.resume();
+                playMelodyAndText();
+            }, 800);
+        });
+    </script>
+</body>
+</html>

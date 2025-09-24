@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bunny Food Runner</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #FFB6C1, #E6E6FA, #F0E68C);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+  
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            border: 3px solid #8B4513;
+            border-radius: 15px;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #FFB6C1 0%, #E6E6FA 40%, #F0E68C 70%, #DEB887 100%);
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: transparent;
+        }
+        
+        #gameUI {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+        
+        #passwordForm {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            z-index: 30;
+       
+        }
+        
+        #passwordForm h2 {
+            color: #FF69B4;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #passwordQuestion {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        #passwordInput {
+            padding: 15px;
+            font-size: 18px;
+            border: 3px solid #FF69B4;
+            border-radius: 15px;
+            margin: 15px 0;
+            width: 250px;
+            font-family: inherit;
+            text-align: center;
+        }
+        
+        #passwordInput:focus {
+            outline: none;
+            border-color: #FF1493;
+            box-shadow: 0 0 10px rgba(255, 20, 147, 0.3);
+        }
+        
+        #submitBtn {
+            background: linear-gradient(45deg, #FF69B4, #FF1493);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+        
+        #submitBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(255, 20, 147, 0.4);
+        }
+        
+        #errorMessage {
+            color: #FF0000;
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 24px;
+            display: none;
+            z-index: 20;
+        }
+        
+        .btn {
+            background: #FF6B6B;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 18px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 15px;
+     
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #FF5252;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="500"></canvas>
+        <div id="gameUI">
+            <div>Score: <span id="score">0</span></div>
+        </div>
+        <div id="passwordForm">
+            <h2>🐰 Hà Linh Runner</h2>
+            <div id="passwordQuestion">Ai là người nói yêu trước</div>
+            <input  id="passwordInput" placeholder="Bắt đầu bằng chữ R (tên ko cần dấu nữa)" maxlength="20">
+            <br>
+            <button id="submitBtn" onclick="checkPassword()">Submit</button>
+            <div id="errorMessage">Try again!</div>
+        </div>
+        <div id="instructions">
+            Get over 2308 score to win • Collect Food for Mr Turtle • Find love in the City of Light! 🗼💕<br>
+            <strong>Space/Tap to jump • Double jump available!</strong>
+        </div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button class="btn" onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let gameRunning = false; // Start with game paused
+        let gameStarted = false; // Track if game has been started
+        let score = 0;
+        let gameSpeed = 3;
+        let scrollOffset = 0;
+        let restaurantCount = 0;
+        let gameWon = false;
+        let animationFrame = 0;
+        
+        // Bunny object with double jump capability
+        const bunny = {
+            x: 100,
+            y: 350,
+            width: 40,
+            height: 40,
+            velocityY: 0,
+            isJumping: false,
+            groundY: 350,
+            jumpPower: -12,
+            gravity: 0.5,
+            jumpsRemaining: 2, // Double jump feature
+            maxJumps: 2
+        };
+        
+        // Grey bunny for ending scene
+        const greyBunny = {
+            x: 600,
+            y: 350,
+            width: 40,
+            height: 40,
+            visible: false
+        };
+        
+        // Game objects arrays
+        let restaurants = [];
+        let foods = [];
+        let obstacles = [];
+        let clouds = [];
+        let eiffelTowers = [];
+        
+        // Food types with French cuisine
+        const foodTypes = [
+            { name: 'croissant', color: '#DAA520', points: 100, emoji: '🥐' },
+            { name: 'cheese', color: '#FFFF99', points: 150, emoji: '🧀' },
+            { name: 'baguette', color: '#DEB887', points: 200, emoji: '🥖' },
+            { name: 'wine', color: '#8B0000', points: 250, emoji: '🍷' }
+        ];
+        
+        // Obstacle types (easy obstacles)
+        const obstacleTypes = [
+            { name: 'flower_pot', width: 30, height: 40, color: '#8B4513', emoji: '🪴' },
+            { name: 'trash_can', width: 25, height: 45, color: '#696969', emoji: '🗑️' },
+            { name: 'street_cone', width: 20, height: 35, color: '#FF6347', emoji: '🚧' }
+        ];
+        
+        // Initialize game objects
+        function initGame() {
+            // Create initial restaurants
+            for (let i = 0; i < 3; i++) {
+                restaurants.push({
+                    x: 200 + i * 300,
+                    y: 280,
+                    width: 120,
+                    height: 110,
+                    type: i % 3
+                });
+                restaurantCount++;
+            }
+            
+            // Create initial clouds
+            for (let i = 0; i < 8; i++) {
+                clouds.push({
+                    x: Math.random() * 1600,
+                    y: 50 + Math.random() * 100,
+                    size: 30 + Math.random() * 30,
+                    speed: 0.5 + Math.random() * 0.5
+                });
+            }
+            
+            // Create initial Eiffel Towers in background
+            for (let i = 0; i < 4; i++) {
+                eiffelTowers.push({
+                    x: 100 + i * 400 + Math.random() * 100,
+                    y: 150,
+                    size: 80 + Math.random() * 40
+                });
+            }
+            
+            // Create initial foods and obstacles
+            generateFoodsAndObstacles();
+        }
+        
+        function generateFoodsAndObstacles() {
+            // Generate foods near restaurants
+            restaurants.forEach(restaurant => {
+                // Always generate food for each restaurant
+                const foodType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+                foods.push({
+                    x: restaurant.x + Math.random() * 80 + 20,
+                    y: restaurant.y - 30,
+                    width: 25,
+                    height: 25,
+                    type: foodType,
+                    collected: false
+                });
+                
+                // Add extra food around restaurants
+                if (Math.random() < 0.7) {
+                    const extraFoodType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+                    foods.push({
+                        x: restaurant.x + Math.random() * 120 + 10,
+                        y: restaurant.y + 60,
+                        width: 25,
+                        height: 25,
+                        type: extraFoodType,
+                        collected: false
+                    });
+                }
+                
+                // Generate easy obstacles between restaurants (30% chance)
+                if (Math.random() < 0.3) {
+                    const obstacleType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                    obstacles.push({
+                        x: restaurant.x + 150 + Math.random() * 50,
+                        y: 390 - obstacleType.height,
+                        width: obstacleType.width,
+                        height: obstacleType.height,
+                        type: obstacleType,
+                        active: true
+                    });
+                }
+            });
+        }
+        
+        function drawBunny() {
+            // Pink bunny with jump animation
+            let jumpOffset = 0;
+            if (bunny.isJumping && bunny.velocityY < 0) {
+                jumpOffset = Math.abs(bunny.velocityY) * 0.5; // Slight tilt when jumping up
+            }
+            drawSingleBunny(bunny.x, bunny.y - jumpOffset, '#FFB6C1', '#FF69B4');
+            
+            // Show double jump indicator
+            if (bunny.jumpsRemaining < bunny.maxJumps && bunny.jumpsRemaining > 0) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Double Jump!', bunny.x + 20, bunny.y - 10);
+            }
+        }
+        
+        function drawGreyBunny() {
+            if (!greyBunny.visible) return;
+            drawSingleBunny(greyBunny.x, greyBunny.y, '#C0C0C0', '#A9A9A9');
+        }
+        
+        function drawSingleBunny(x, y, mainColor, earColor) {
+            ctx.fillStyle = mainColor;
+            ctx.fillRect(x, y, 40, 40);
+            
+            // Bunny ears
+            ctx.fillStyle = mainColor;
+            ctx.fillRect(x + 5, y - 15, 8, 20);
+            ctx.fillRect(x + 27, y - 15, 8, 20);
+            
+            // Inner ears
+            ctx.fillStyle = earColor;
+            ctx.fillRect(x + 7, y - 12, 4, 14);
+            ctx.fillRect(x + 29, y - 12, 4, 14);
+            
+            // Eyes
+            ctx.fillStyle = 'black';
+            ctx.fillRect(x + 10, y + 8, 4, 4);
+            ctx.fillRect(x + 26, y + 8, 4, 4);
+            
+            // Nose
+            ctx.fillStyle = '#FF1493';
+            ctx.fillRect(x + 18, y + 18, 4, 3);
+            
+            // Tail
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x - 5, y + 20, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawObstacle(obstacle) {
+            if (!obstacle.active) return;
+            
+            const x = obstacle.x - scrollOffset;
+            
+            // Draw obstacle base
+            ctx.fillStyle = obstacle.type.color;
+            ctx.fillRect(x, obstacle.y, obstacle.width, obstacle.height);
+            
+            // Draw obstacle emoji/decoration
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(obstacle.type.emoji, x + obstacle.width/2, obstacle.y + obstacle.height/2 + 6);
+            
+            // Add shadow for depth
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(x + 2, obstacle.y + obstacle.height, obstacle.width, 5);
+        }
+        
+        function drawRestaurant(restaurant) {
+            const x = restaurant.x - scrollOffset;
+            
+            // Parisian restaurant colors and branding
+            let buildingColor, roofColor, signText, signBg;
+            
+            switch(restaurant.type) {
+                case 0:
+                    buildingColor = '#F5DEB3';
+                    roofColor = '#8B4513';
+                    signText = 'CAFÉ de PARIS';
+                    signBg = '#000080';
+                    break;
+                case 1:
+                    buildingColor = '#FFE4B5';
+                    roofColor = '#CD853F';
+                    signText = 'BISTRO AMOUR';
+                    signBg = '#DC143C';
+                    break;
+                case 2:
+                    buildingColor = '#FFEFD5';
+                    roofColor = '#D2691E';
+                    signText = 'BOULANGERIE';
+                    signBg = '#4169E1';
+                    break;
+            }
+            
+            // Restaurant building with Parisian style
+            ctx.fillStyle = buildingColor;
+            ctx.fillRect(x, restaurant.y, restaurant.width, restaurant.height);
+            
+            // French-style roof
+            ctx.fillStyle = roofColor;
+            ctx.beginPath();
+            ctx.moveTo(x - 10, restaurant.y);
+            ctx.lineTo(x + restaurant.width/2, restaurant.y - 35);
+            ctx.lineTo(x + restaurant.width + 10, restaurant.y);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Elegant French windows
+            ctx.fillStyle = '#E6E6FA';
+            ctx.fillRect(x + 10, restaurant.y + 15, 30, 35);
+            ctx.fillRect(x + 80, restaurant.y + 15, 30, 35);
+            
+            // Window frames
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x + 10, restaurant.y + 15, 30, 35);
+            ctx.strokeRect(x + 80, restaurant.y + 15, 30, 35);
+            
+            // French door
+            ctx.fillStyle = '#8B0000';
+            ctx.fillRect(x + 50, restaurant.y + 55, 20, 55);
+            
+            // Awning
+            ctx.fillStyle = signBg;
+            ctx.fillRect(x + 5, restaurant.y + 50, 110, 8);
+            
+            // French Brand Sign
+            ctx.fillStyle = signBg;
+            ctx.fillRect(x + 5, restaurant.y - 30, 110, 25);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(signText, x + 60, restaurant.y - 12);
+            
+            // Add French flag colors as decoration
+            ctx.fillStyle = '#0055A4';
+            ctx.fillRect(x + 5, restaurant.y - 5, 15, 8);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(x + 20, restaurant.y - 5, 15, 8);
+            ctx.fillStyle = '#EF4135';
+            ctx.fillRect(x + 35, restaurant.y - 5, 15, 8);
+        }
+        
+        function drawFood(food) {
+            if (food.collected) return;
+            
+            const x = food.x - scrollOffset;
+            
+            // Food background circle
+            ctx.fillStyle = food.type.color;
+            ctx.beginPath();
+            ctx.arc(x + food.width/2, food.y + food.height/2, food.width/2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Food emoji/text
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(food.type.emoji, x + food.width/2, food.y + food.height/2 + 6);
+        }
+        
+        function drawHeart(x, y, size) {
+            // Heart body
+            ctx.fillStyle = '#FF1493';
+            ctx.beginPath();
+            ctx.moveTo(x, y + size / 4);
+
+            // Left half of heart
+            ctx.bezierCurveTo(
+                x - size, y - size / 2,
+                x - size, y + size / 2,
+                x, y + size
+            );
+
+            // Right half of heart
+            ctx.bezierCurveTo(
+                x + size, y + size / 2,
+                x + size, y - size / 2,
+                x, y + size / 4
+            );
+
+            ctx.closePath();
+            ctx.fill();
+
+            // Heart sparkle effect
+            if (animationFrame % 20 < 10) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.beginPath();
+                ctx.arc(x - size / 4, y + size / 4, 2, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(x + size / 3, y + size / 5, 2, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(x, y + size / 2.5, 1.5, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+        }
+        
+        function drawWinScene() {
+    // Black background
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Starry night effect
+    for (let i = 0; i < 100; i++) {
+        ctx.fillStyle = 'white';
+        const starX = Math.random() * canvas.width;
+        const starY = Math.random() * canvas.height;
+        const starSize = Math.random() * 2;
+        ctx.fillRect(starX, starY, starSize, starSize);
+    }
+
+    // "Love in Paris!" text
+    ctx.fillStyle = '#FFB6C1';
+    ctx.font = 'bold 48px Brush Script MT';
+    ctx.textAlign = 'center';
+    ctx.fillText('Love in Paris!', canvas.width / 2, 150);
+
+    // Animate bunnies moving toward each other
+    const meetX = canvas.width / 2;
+
+    if (animationFrame < 120) {
+        const progress = animationFrame / 120;
+        const pinkX = 100 + (meetX - 120 - 100) * progress;
+        const greyX = 600 - (600 - (meetX + 80)) * progress;
+
+        drawSingleBunny(pinkX, 250, '#FFB6C1', '#FF69B4');
+        drawSingleBunny(greyX, 250, '#C0C0C0', '#A9A9A9');
+    } else {
+        drawSingleBunny(meetX - 60, 250, '#FFB6C1', '#FF69B4');
+        drawSingleBunny(meetX + 20, 250, '#C0C0C0', '#A9A9A9');
+
+        // Draw animated heart between them
+        const heartSize = 30 + Math.sin(animationFrame * 0.2) * 5;
+        drawHeart(meetX, 200, heartSize);
+
+        // "Félicitations!" text
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = 'bold 32px Brush Script MT';
+        ctx.fillText('Félicitations!', canvas.width / 2, 380);
+
+        ctx.font = '20px Brush Script MT';
+        ctx.fillText(`Score Final: ${score}`, canvas.width / 2, 420);
+
+  // Show "Next Page" button after 5 seconds
+// Only add the button once
+if (!document.getElementById("nextPageBtn")) {
+    const btn = document.createElement("button");
+    btn.id = "nextPageBtn";
+    btn.textContent = "Next Page";
+
+    // Style
+    btn.style.position = "fixed";
+    btn.style.bottom = "20px";
+    btn.style.right = "20px";
+    btn.style.padding = "10px 20px";
+    btn.style.fontSize = "18px";
+    btn.style.borderRadius = "12px";
+    btn.style.cursor = "pointer";
+    btn.style.zIndex = "1000";
+
+    // Action
+    btn.addEventListener("click", () => {
+        // Disable the button immediately to prevent double clicks
+        btn.disabled = true;
+        window.location.href = "index2.html";
+    });
+
+    // Append after delay
+    setTimeout(() => document.body.appendChild(btn), 1000);
+}
+
+    }}
+        
+        function drawEiffelTower(tower) {
+            const x = tower.x - scrollOffset * 0.3;
+            const y = tower.y;
+            const size = tower.size;
+            
+            // Eiffel Tower silhouette
+            ctx.fillStyle = '#2F4F4F';
+            ctx.globalAlpha = 0.6;
+            
+            // Tower base
+            ctx.fillRect(x - size/8, y + size - 10, size/4, 10);
+            
+            // Tower legs
+            ctx.beginPath();
+            ctx.moveTo(x - size/6, y + size);
+            ctx.lineTo(x, y + size/3);
+            ctx.lineTo(x + size/6, y + size);
+            ctx.moveTo(x - size/10, y + size/2);
+            ctx.lineTo(x + size/10, y + size/2);
+            ctx.stroke();
+            
+            // Tower top
+            ctx.beginPath();
+            ctx.moveTo(x - size/12, y + size/3);
+            ctx.lineTo(x, y);
+            ctx.lineTo(x + size/12, y + size/3);
+            ctx.stroke();
+            
+            ctx.globalAlpha = 1;
+        }
+
+        function drawCloud(cloud) {
+            const x = cloud.x - scrollOffset * cloud.speed;
+            
+            ctx.fillStyle = 'white';
+            ctx.globalAlpha = 0.8;
+            ctx.beginPath();
+            ctx.arc(x, cloud.y, cloud.size, 0, Math.PI * 2);
+            ctx.arc(x + cloud.size * 0.6, cloud.y, cloud.size * 0.8, 0, Math.PI * 2);
+            ctx.arc(x - cloud.size * 0.6, cloud.y, cloud.size * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+        
+        function drawGround() {
+            // Parisian cobblestone street
+            ctx.fillStyle = '#D2B48C';
+            ctx.fillRect(0, 390, canvas.width, 110);
+            
+            // Cobblestone pattern
+            ctx.fillStyle = '#C0C0C0';
+            for (let i = 0; i < canvas.width; i += 25) {
+                for (let j = 0; j < 4; j++) {
+                    ctx.fillRect(i + (j % 2) * 12, 390 + j * 15, 20, 12);
+                }
+            }
+            
+            // Street lamp posts
+            for (let i = 200; i < canvas.width + scrollOffset; i += 300) {
+                const lampX = i - scrollOffset;
+                if (lampX > -50 && lampX < canvas.width + 50) {
+                    // Lamp post
+                    ctx.fillStyle = '#2F4F4F';
+                    ctx.fillRect(lampX, 320, 4, 70);
+                    
+                    // Lamp
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(lampX + 2, 320, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        function updateBunny() {
+            // Apply gravity
+            bunny.velocityY += bunny.gravity;
+            bunny.y += bunny.velocityY;
+            
+            // Ground collision
+            if (bunny.y >= bunny.groundY) {
+                bunny.y = bunny.groundY;
+                bunny.velocityY = 0;
+                bunny.isJumping = false;
+                bunny.jumpsRemaining = bunny.maxJumps; // Reset jumps when touching ground
+            }
+        }
+        
+        function jump() {
+            if (bunny.jumpsRemaining > 0) {
+                bunny.velocityY = bunny.jumpPower;
+                bunny.isJumping = true;
+                bunny.jumpsRemaining--;
+            }
+        }
+        
+        function updateGame() {
+            if (!gameRunning || !gameStarted) {
+                if (gameWon) {
+                    animationFrame++;
+                }
+                return;
+            }
+            
+            gameSpeed += 0.0005;
+            scrollOffset += gameSpeed;
+            
+            // Update bunny
+            updateBunny();
+            
+            // Check if we've reached the win condition
+            if (score >= 2308 && !gameWon) {
+                gameWon = true;
+                gameRunning = false;
+                greyBunny.visible = true;
+                animationFrame = 0;
+                return;
+            }
+            
+            // Check food collection
+            foods.forEach(food => {
+                if (!food.collected && 
+                    bunny.x < food.x - scrollOffset + food.width &&
+                    bunny.x + bunny.width > food.x - scrollOffset &&
+                    bunny.y < food.y + food.height &&
+                    bunny.y + bunny.height > food.y) {
+                    
+                    food.collected = true;
+                    score += food.type.points;
+                    updateUI();
+                }
+            });
+            
+            // Check obstacle collision
+            obstacles.forEach(obstacle => {
+                if (obstacle.active &&
+                    bunny.x < obstacle.x - scrollOffset + obstacle.width &&
+                    bunny.x + bunny.width > obstacle.x - scrollOffset &&
+                    bunny.y < obstacle.y + obstacle.height &&
+                    bunny.y + bunny.height > obstacle.y) {
+                    
+                    gameOver();
+                }
+            });
+            
+            // Generate new restaurants and objects as needed
+            if (restaurants.length > 0 && restaurants[restaurants.length - 1].x - scrollOffset < canvas.width && restaurantCount < 50) {
+                const lastRestaurant = restaurants[restaurants.length - 1];
+                restaurants.push({
+                    x: lastRestaurant.x + 300,
+                    y: 280,
+                    width: 120,
+                    height: 110,
+                    type: restaurantCount % 3
+                });
+                restaurantCount++;
+                
+                // Add food for new restaurant
+                const newRestaurant = restaurants[restaurants.length - 1];
+                const foodType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+                foods.push({
+                    x: newRestaurant.x + Math.random() * 80 + 20,
+                    y: newRestaurant.y - 30,
+                    width: 25,
+                    height: 25,
+                    type: foodType,
+                    collected: false
+                });
+                
+                // Add extra food around the restaurant
+                if (Math.random() < 0.8) {
+                    const extraFoodType = foodTypes[Math.floor(Math.random() * foodTypes.length)];
+                    foods.push({
+                        x: newRestaurant.x + Math.random() * 120 + 10,
+                        y: newRestaurant.y + 60,
+                        width: 25,
+                        height: 25,
+                        type: extraFoodType,
+                        collected: false
+                    });
+                }
+                
+                // Add obstacles (easy and spaced out)
+                if (Math.random() < 0.4) {
+                    const obstacleType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                    obstacles.push({
+                        x: newRestaurant.x + 150 + Math.random() * 80,
+                        y: 390 - obstacleType.height,
+                        width: obstacleType.width,
+                        height: obstacleType.height,
+                        type: obstacleType,
+                        active: true
+                    });
+                }
+                
+                // Add new Eiffel Tower
+                eiffelTowers.push({
+                    x: newRestaurant.x + 200 + Math.random() * 100,
+                    y: 150,
+                    size: 80 + Math.random() * 40
+                });
+            }
+            
+            // Clean up old objects
+            restaurants = restaurants.filter(r => r.x - scrollOffset > -200);
+            foods = foods.filter(f => f.x - scrollOffset > -100);
+            obstacles = obstacles.filter(o => o.x - scrollOffset > -100);
+            eiffelTowers = eiffelTowers.filter(t => t.x - scrollOffset > -200);
+        }
+        
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (gameWon) {
+                drawWinScene();
+                return;
+            }
+            
+            // Draw background elements
+            clouds.forEach(drawCloud);
+            eiffelTowers.forEach(drawEiffelTower);
+            drawGround();
+            
+            // Draw game objects
+            restaurants.forEach(drawRestaurant);
+            foods.forEach(drawFood);
+            obstacles.forEach(drawObstacle);
+            
+            // Draw bunnies
+            drawBunny();
+            drawGreyBunny();
+        }
+        
+        function checkPassword() {
+            const passwordInput = document.getElementById('passwordInput');
+            const errorMessage = document.getElementById('errorMessage');
+            const userAnswer = passwordInput.value.trim().toLowerCase();
+            
+            if (userAnswer === 'rua') {
+                // Correct password - start game
+                document.getElementById('passwordForm').style.display = 'none';
+                gameRunning = true;
+                gameStarted = true;
+            } else {
+                // Wrong password - show error
+                errorMessage.style.display = 'block';
+                passwordInput.value = '';
+                passwordInput.focus();
+                
+                // Hide error message after 2 seconds
+                setTimeout(() => {
+                    errorMessage.style.display = 'none';
+                }, 2000);
+            }
+        }
+        
+        function gameLoop() {
+            updateGame();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+        
+        function restartGame() {
+            gameRunning = true;
+            gameWon = false;
+            score = 0;
+            gameSpeed = 3;
+            scrollOffset = 0;
+            restaurantCount = 0;
+            animationFrame = 0;
+            
+            bunny.x = 100;
+            bunny.y = bunny.groundY;
+            bunny.velocityY = 0;
+            bunny.isJumping = false;
+            bunny.jumpsRemaining = bunny.maxJumps;
+            
+            greyBunny.visible = false;
+            
+            restaurants = [];
+            foods = [];
+            obstacles = [];
+            eiffelTowers = [];
+            
+            document.getElementById('gameOver').style.display = 'none';
+            updateUI();
+            initGame();
+        }
+        
+        // Controls
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space' && gameRunning) {
+                event.preventDefault();
+                jump();
+            }
+            if (event.code === 'Enter' && !gameStarted) {
+                event.preventDefault();
+                checkPassword();
+            }
+        });
+        
+        // Touch controls for mobile
+        canvas.addEventListener('touchstart', (event) => {
+            event.preventDefault();
+            if (gameRunning) {
+                jump();
+            }
+        });
+        
+        // Allow Enter key to submit password
+        document.addEventListener('DOMContentLoaded', function() {
+            const passwordInput = document.getElementById('passwordInput');
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter') {
+                        checkPassword();
+                    }
+                });
+                passwordInput.focus();
+            }
+        });
+        
+        // Initialize and start game
+        initGame();
+        updateUI();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ha Linh Chicken Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(135deg, #87CEEB, #98FB98);
+            font-family: 'Arial', sans-serif;
+            cursor: none;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 15px;
+            border: 2px solid #FFD700;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        #ui:hover {
+            background: rgba(0, 0, 0, 0.8);
+            transform: scale(1.05);
+        }
+        
+        .ui-item {
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .ui-icon {
+            margin-right: 10px;
+            font-size: 24px;
+        }
+        
+        #progressBar {
+            width: 150px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            margin-left: 10px;
+            overflow: hidden;
+        }
+        
+        #progressFill {
+            height: 100%;
+            background: linear-gradient(90deg, #44ff44, #88ff88);
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+        
+        #upgradeNotification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(45deg, #FFD700, #FFA500);
+            color: #8B4513;
+            padding: 20px 40px;
+            border-radius: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            z-index: 150;
+            opacity: 0;
+            transition: all 0.5s ease;
+            border: 3px solid #8B4513;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        
+        #upgradeNotification.show {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            z-index: 50;
+            pointer-events: none;
+            transition: all 0.2s ease;
+        }
+        
+        #crosshair.shooting {
+            transform: translate(-50%, -50%) scale(1.3);
+        }
+        
+        .crosshair-line {
+            position: absolute;
+            background: linear-gradient(45deg, #ff0000, #ff4444);
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
+        .crosshair-line.horizontal {
+            width: 40px;
+            height: 3px;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+        }
+        
+        .crosshair-line.vertical {
+            width: 3px;
+            height: 40px;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+        }
+        
+        .crosshair-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ff0000;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.8);
+        }
+        
+        #victoryScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FF6B35);
+            background-size: 400% 400%;
+            animation: gradientShift 3s ease infinite;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 200;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        #victoryScreen h1 {
+            font-size: 56px;
+            color: #8B4513;
+            margin-bottom: 30px;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+            animation: bounce 2s infinite;
+        }
+        
+        #victoryScreen p {
+            font-size: 24px;
+            color: #654321;
+            text-align: center;
+            max-width: 600px;
+            line-height: 1.6;
+            margin: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        
+        #restartBtn {
+            padding: 20px 40px;
+            font-size: 22px;
+            background: linear-gradient(45deg, #8B4513, #A0522D);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        #restartBtn:hover {
+            transform: scale(1.1) translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-15px);
+            }
+            60% {
+                transform: translateY(-7px);
+            }
+        }
+        
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4CAF50, #45a049, #2E7D32);
+            background-size: 400% 400%;
+            animation: gradientShift 4s ease infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 300;
+        }
+        
+        #startScreen h1 {
+            font-size: 64px;
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        #startScreen p {
+            font-size: 22px;
+            color: #E8F5E8;
+            text-align: center;
+            margin: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+        
+        #startBtn {
+            padding: 25px 50px;
+            font-size: 26px;
+            background: linear-gradient(45deg, #FF6B35, #E55A2B);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: all 0.3s;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        #startBtn:hover {
+            transform: scale(1.1) translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.4);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="startScreen">
+            <h1>🐔 Hãy Giúp Hà Linh Bé bắn mấy con gà🐔</h1>
+            <p>🚨 Bắn 150 con gà thì thắng 🚨</p>
+            <p>🎯 Bấm vào S để bắn, Đặc biệt nếu em GIỮ PHÍM S nó bắn ghê lắm</p>
+            <p>🔫 Em mà bắn trúng được 30 con thì x3 đạn</p>
+            <p>💥 Bắn trúng 40 còn thfi x5 đạn với nó to hơn</p>
+            <p>🐔 Bấm Enter Hoặc bấm vào Nút Les Go để bắt đầu</p>
+            <button id="startBtn">Les Go</button>
+        </div>
+        
+        <div id="ui">
+            <div class="ui-item">
+                <span class="ui-icon">🎯</span>
+                <span>Score: <span id="score">0</span> / 100</span>
+                <div id="progressBar">
+                    <div id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="ui-item">
+                <span class="ui-icon">🔫</span>
+                <span id="weaponStatus">Single Shot</span>
+            </div>
+        </div>
+        
+        <div id="crosshair">
+            <div class="crosshair-line horizontal"></div>
+            <div class="crosshair-line vertical"></div>
+            <div class="crosshair-dot"></div>
+        </div>
+        
+        <div id="upgradeNotification">
+            🎉 <span id="upgradeText">TRIPLE SHOT UNLOCKED!</span> 🎉<br>
+            <small id="upgradeDesc">Giờ Bắn 3 Vien rùi giỏi quá</small>
+        </div>
+        
+        <div id="controls">
+            <strong>Controls:</strong><br>
+            🖱️ Mouse: Look around (360°)<br>
+            🖱️ Click: Shoot or Hit S<br>
+            📱 Mobile: Touch to shoot
+        </div>
+        
+        <div id="victoryScreen">
+            <h1>🎉 Chúc mừng bé tí 🎉</h1>
+            <p>🏆 Sorry bé tí vụ hôm qua nhá</p>
+            <p>🎊 Iu iu iu iu em nhiều.</p>
+            <p>🐄🐷🐑 Ấn Enter Để Đi Tiếp 🐄🐷🐑</p>
+            <button id="restartBtn" onclick="window.location.href='index1.html'">Tiếp tục thôiii</button>
+
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game variables - all properly declared at the top
+        let scene, camera, renderer;
+        let chickens = [];
+        let bullets = [];
+        let score = 0;
+        let gameStarted = false;
+        let gameEnded = false;
+        let mouseX = 0;
+        let mouseY = 0;
+        let isMouseDown = false;
+        let tripleShot = false;
+        let megaShot = false;
+        let cameraRotationY = 0;
+        let cameraRotationX = 0;
+
+        // Pointer lock variables
+        let controls = {
+            moveForward: false,
+            moveBackward: false,
+            moveLeft: false,
+            moveRight: false
+        };
+
+        function init() {
+            console.log("Initializing game...");
+            console.log("megaShot variable:", megaShot);
+            
+            // Scene setup
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x87CEEB, 50, 300);
+            
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 10);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x87CEEB);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+            // Enhanced lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(20, 30, 20);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 4096;
+            directionalLight.shadow.mapSize.height = 4096;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+
+            // Point light for dynamic lighting
+            const pointLight = new THREE.PointLight(0xffaa88, 0.6, 100);
+            pointLight.position.set(0, 10, 0);
+            scene.add(pointLight);
+
+            // Ground
+            const groundGeometry = new THREE.PlaneGeometry(400, 400, 20, 20);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x90EE90,
+                transparent: true,
+                opacity: 0.9
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // Enhanced environment
+            createEnvironment();
+            setupEventListeners();
+            spawnChickens();
+            animate();
+        }
+
+        function createEnvironment() {
+            // Trees
+            for (let i = 0; i < 15; i++) {
+                createTree(
+                    (Math.random() - 0.5) * 200, 
+                    (Math.random() - 0.5) * 200
+                );
+            }
+            
+            // Bushes
+            for (let i = 0; i < 20; i++) {
+                createBush(
+                    (Math.random() - 0.5) * 180, 
+                    (Math.random() - 0.5) * 180
+                );
+            }
+        }
+
+        function createTree(x, z) {
+            const treeGroup = new THREE.Group();
+            
+            // Trunk
+            const trunkGeometry = new THREE.CylinderGeometry(0.8, 1.2, 6);
+            const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 3;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+
+            // Leaves
+            const leavesGeometry = new THREE.SphereGeometry(4, 8, 6);
+            const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves.position.y = 7;
+            leaves.castShadow = true;
+            leaves.scale.set(1, 0.8, 1);
+            treeGroup.add(leaves);
+
+            treeGroup.position.set(x, 0, z);
+            scene.add(treeGroup);
+        }
+
+        function createBush(x, z) {
+            const bushGeometry = new THREE.SphereGeometry(1.5, 8, 6);
+            const bushMaterial = new THREE.MeshLambertMaterial({ color: 0x32CD32 });
+            const bush = new THREE.Mesh(bushGeometry, bushMaterial);
+            bush.position.set(x, 1, z);
+            bush.scale.set(1, 0.6, 1);
+            bush.castShadow = true;
+            bush.receiveShadow = true;
+            scene.add(bush);
+        }
+
+        function createChicken(x, y, z) {
+            const chickenGroup = new THREE.Group();
+            
+            // Enhanced chicken model
+            // Body
+            const bodyGeometry = new THREE.SphereGeometry(1, 12, 8);
+            const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.scale.set(1, 0.9, 1.3);
+            body.castShadow = true;
+            chickenGroup.add(body);
+
+            // Head
+            const headGeometry = new THREE.SphereGeometry(0.6, 10, 8);
+            const headMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.set(0, 1, 0.8);
+            head.castShadow = true;
+            chickenGroup.add(head);
+
+            // Beak
+            const beakGeometry = new THREE.ConeGeometry(0.15, 0.4, 6);
+            const beakMaterial = new THREE.MeshLambertMaterial({ color: 0xFFA500 });
+            const beak = new THREE.Mesh(beakGeometry, beakMaterial);
+            beak.position.set(0, 1, 1.3);
+            beak.rotation.x = Math.PI / 2;
+            chickenGroup.add(beak);
+
+            // Comb (red thing on head)
+            const combGeometry = new THREE.SphereGeometry(0.2, 6, 4);
+            const combMaterial = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
+            const comb = new THREE.Mesh(combGeometry, combMaterial);
+            comb.position.set(0, 1.5, 0.6);
+            comb.scale.set(1, 0.5, 0.8);
+            chickenGroup.add(comb);
+
+            // Enhanced eyes with better visibility
+            const eyeGeometry = new THREE.SphereGeometry(0.15, 8, 6);
+            const eyeMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.25, 1.2, 1.1);
+            chickenGroup.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.25, 1.2, 1.1);
+            chickenGroup.add(rightEye);
+            
+            // Larger, more visible pupils
+            const pupilGeometry = new THREE.SphereGeometry(0.08, 6, 4);
+            const pupilMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+            
+            const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            leftPupil.position.set(-0.25, 1.2, 1.25);
+            chickenGroup.add(leftPupil);
+            
+            const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+            rightPupil.position.set(0.25, 1.2, 1.25);
+            chickenGroup.add(rightPupil);
+            
+            // Eye highlights for more life-like appearance
+            const highlightGeometry = new THREE.SphereGeometry(0.04, 6, 4);
+            const highlightMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xFFFFFF,
+                emissive: 0x222222
+            });
+            
+            const leftHighlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+            leftHighlight.position.set(-0.22, 1.25, 1.28);
+            chickenGroup.add(leftHighlight);
+            
+            const rightHighlight = new THREE.Mesh(highlightGeometry, highlightMaterial);
+            rightHighlight.position.set(0.22, 1.25, 1.28);
+            chickenGroup.add(rightHighlight);
+
+            // Wings
+            const wingGeometry = new THREE.SphereGeometry(0.5, 8, 6);
+            const wingMaterial = new THREE.MeshLambertMaterial({ color: 0xF5F5F5 });
+            
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-0.8, 0.3, 0);
+            leftWing.scale.set(0.8, 1, 1.5);
+            leftWing.castShadow = true;
+            chickenGroup.add(leftWing);
+            
+            const rightWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            rightWing.position.set(0.8, 0.3, 0);
+            rightWing.scale.set(0.8, 1, 1.5);
+            rightWing.castShadow = true;
+            chickenGroup.add(rightWing);
+
+            // Legs
+            const legGeometry = new THREE.CylinderGeometry(0.08, 0.1, 0.8);
+            const legMaterial = new THREE.MeshLambertMaterial({ color: 0xFFA500 });
+            
+            const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+            leftLeg.position.set(-0.3, -0.8, 0.2);
+            chickenGroup.add(leftLeg);
+            
+            const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+            rightLeg.position.set(0.3, -0.8, 0.2);
+            chickenGroup.add(rightLeg);
+
+            chickenGroup.position.set(x, y, z);
+            chickenGroup.userData = {
+                health: 1,
+                speed: 0.03 + Math.random() * 0.04,
+                direction: Math.random() * Math.PI * 2,
+                lastDirectionChange: Date.now(),
+                lastJump: Date.now(),
+                jumpCooldown: 3000,
+                isJumping: false,
+                jumpVelocity: 0,
+                baseY: y
+            };
+            
+            scene.add(chickenGroup);
+            return chickenGroup;
+        }
+
+        function spawnChickens() {
+            for (let i = 0; i < 30; i++) {
+                const x = (Math.random() - 0.5) * 150;
+                const z = (Math.random() - 0.5) * 150;
+                const y = 2;
+                chickens.push(createChicken(x, y, z));
+            }
+        }
+
+       function spawnMoreChickens() {
+    if (chickens.length < 50 && score < 100) {  // max on-screen chickens now 50, game ends at 100
+        for (let i = 0; i < 8; i++) {           // spawn 8 chickens per batch
+            const x = (Math.random() - 0.5) * 150;
+            const z = (Math.random() - 0.5) * 150;
+            const y = 2;
+            chickens.push(createChicken(x, y, z));
+        }
+    }
+}
+
+
+        function createBullet(direction) {
+            let bulletGeometry, bulletMaterial;
+            
+            console.log("Creating bullet, megaShot:", megaShot);
+            
+            if (megaShot === true) {
+                // Bigger bullets for mega shot
+                bulletGeometry = new THREE.SphereGeometry(0.3, 12, 8);
+                bulletMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xFF4500,  // Orange-red color
+                    emissive: 0x441100
+                });
+            } else {
+                // Regular bullets
+                bulletGeometry = new THREE.SphereGeometry(0.15, 8, 6);
+                bulletMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0xFFFF00,  // Yellow color
+                    emissive: 0x444400
+                });
+            }
+            
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            
+            bullet.position.copy(camera.position);
+            bullet.position.add(direction.clone().multiplyScalar(2));
+            bullet.userData = {
+                direction: direction.clone(),
+                life: 0
+            };
+            
+            scene.add(bullet);
+            bullets.push(bullet);
+        }
+
+        function shoot() {
+            if (!gameStarted || gameEnded) return;
+            
+            console.log("Shooting - tripleShot:", tripleShot, "megaShot:", megaShot);
+            
+            // Crosshair animation
+            const crosshair = document.getElementById('crosshair');
+            crosshair.classList.add('shooting');
+            setTimeout(() => crosshair.classList.remove('shooting'), 200);
+            
+            const cameraDirection = new THREE.Vector3();
+            camera.getWorldDirection(cameraDirection);
+            
+            if (megaShot === true) {
+                // Mega shot - 5 bullets in a wider spread
+                const angles = [-0.2, -0.1, 0, 0.1, 0.2];
+                angles.forEach(angle => {
+                    const direction = cameraDirection.clone();
+                    direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+                    createBullet(direction);
+                });
+            } else if (tripleShot === true) {
+                // Triple shot - center, left, right
+                const angles = [-0.1, 0, 0.1];
+                angles.forEach(angle => {
+                    const direction = cameraDirection.clone();
+                    direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle);
+                    createBullet(direction);
+                });
+            } else {
+                createBullet(cameraDirection);
+            }
+        }
+
+       function setupEventListeners() {
+    // Start game with button click
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', restartGame);
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('click', shoot);
+    document.addEventListener('mousedown', () => isMouseDown = true);
+    document.addEventListener('mouseup', () => isMouseDown = false);
+
+    // Touch events for mobile
+    document.addEventListener('touchstart', shoot);
+    document.addEventListener('touchmove', onTouchMove);
+
+    window.addEventListener('resize', onWindowResize);
+
+    // Pointer lock
+    document.addEventListener('click', () => {
+        if (gameStarted && !gameEnded) {
+            document.body.requestPointerLock();
+        }
+    });
+
+    // Keyboard controls
+    document.addEventListener('keydown', (event) => {
+        if (!gameStarted && event.key === "Enter") {
+            startGame();
+        }
+        if (gameStarted && !gameEnded && (event.key === "s" || event.key === "S")) {
+            shoot();
+        }
+         if (gameStarted && gameEnded && (event.key === "Enter")) {
+             document.getElementById('restartBtn').click();
+        }
+    });
+}
+
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameStarted = true;
+            document.body.requestPointerLock();
+        }
+
+        function restartGame() {
+            // Reset game state
+            score = 0;
+            gameEnded = false;
+            tripleShot = false;
+            megaShot = false;
+            
+            console.log("Restarting game - megaShot reset to:", megaShot);
+            
+            // Clear chickens and bullets
+            chickens.forEach(chicken => scene.remove(chicken));
+            bullets.forEach(bullet => scene.remove(bullet));
+            chickens = [];
+            bullets = [];
+            
+            // Reset camera
+            cameraRotationY = 0;
+            cameraRotationX = 0;
+            camera.position.set(0, 5, 10);
+            camera.rotation.set(0, 0, 0);
+            
+            // Hide victory screen
+            document.getElementById('victoryScreen').style.display = 'none';
+            
+            // Spawn new chickens
+            spawnChickens();
+            
+            // Update UI
+            updateUI();
+        }
+
+        function onMouseMove(event) {
+            if (!gameStarted || gameEnded) return;
+            
+            if (document.pointerLockElement === document.body) {
+                const sensitivity = 0.002;
+                cameraRotationY -= event.movementX * sensitivity;
+                cameraRotationX -= event.movementY * sensitivity;
+                
+                // Limit vertical rotation
+                cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotationX));
+                
+                // Apply rotation to camera
+                camera.rotation.order = 'YXZ';
+                camera.rotation.y = cameraRotationY;
+                camera.rotation.x = cameraRotationX;
+            }
+        }
+
+        function onTouchMove(event) {
+            if (!gameStarted || gameEnded || event.touches.length === 0) return;
+            
+            const touch = event.touches[0];
+            const sensitivity = 0.005;
+            
+            if (this.lastTouchX !== undefined) {
+                const deltaX = touch.clientX - this.lastTouchX;
+                const deltaY = touch.clientY - this.lastTouchY;
+                
+                cameraRotationY -= deltaX * sensitivity;
+                cameraRotationX -= deltaY * sensitivity;
+                
+                cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotationX));
+                
+                camera.rotation.order = 'YXZ';
+                camera.rotation.y = cameraRotationY;
+                camera.rotation.x = cameraRotationX;
+            }
+            
+            this.lastTouchX = touch.clientX;
+            this.lastTouchY = touch.clientY;
+            
+            event.preventDefault();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function updateChickens() {
+            const currentTime = Date.now();
+            
+            chickens.forEach((chicken, index) => {
+                // Random direction change
+                if (currentTime - chicken.userData.lastDirectionChange > 2000 + Math.random() * 3000) {
+                    chicken.userData.direction += (Math.random() - 0.5) * Math.PI * 1.5;
+                    chicken.userData.lastDirectionChange = currentTime;
+                }
+                
+                // Jumping logic
+                if (!chicken.userData.isJumping && currentTime - chicken.userData.lastJump > chicken.userData.jumpCooldown) {
+                    chicken.userData.isJumping = true;
+                    chicken.userData.jumpVelocity = 0.3;
+                    chicken.userData.lastJump = currentTime;
+                }
+                
+                // Handle jumping physics
+                if (chicken.userData.isJumping) {
+                    chicken.position.y += chicken.userData.jumpVelocity;
+                    chicken.userData.jumpVelocity -= 0.02; // gravity
+                    
+                    if (chicken.position.y <= chicken.userData.baseY) {
+                        chicken.position.y = chicken.userData.baseY;
+                        chicken.userData.isJumping = false;
+                        chicken.userData.jumpVelocity = 0;
+                    }
+                }
+                
+                // Movement
+                const moveX = Math.cos(chicken.userData.direction) * chicken.userData.speed;
+                const moveZ = Math.sin(chicken.userData.direction) * chicken.userData.speed;
+                
+                chicken.position.x += moveX;
+                chicken.position.z += moveZ;
+                
+                // Keep chickens in bounds
+                if (Math.abs(chicken.position.x) > 75) {
+                    chicken.userData.direction += Math.PI;
+                }
+                if (Math.abs(chicken.position.z) > 75) {
+                    chicken.userData.direction += Math.PI;
+                }
+                
+                // Face movement direction
+                chicken.rotation.y = chicken.userData.direction + Math.PI;
+                
+                // Wing flap animation
+                const wingFlap = Math.sin(Date.now() * 0.01 + index) * 0.2;
+                chicken.children.forEach(child => {
+                    if (child.position.x < -0.5 || child.position.x > 0.5) { // wings
+                        child.rotation.z = wingFlap;
+                    }
+                });
+            });
+        }
+
+        function updateBullets() {
+            bullets.forEach((bullet, bulletIndex) => {
+                // Slower bullet speed - reduced from 3 to 2
+                bullet.position.add(bullet.userData.direction.clone().multiplyScalar(2));
+                bullet.userData.life++;
+                
+                // Remove old bullets
+                if (bullet.userData.life > 150) {  // Increased lifetime since bullets are slower
+                    scene.remove(bullet);
+                    bullets.splice(bulletIndex, 1);
+                    return;
+                }
+                
+                // Check collision with chickens
+                chickens.forEach((chicken, chickenIndex) => {
+                    const distance = bullet.position.distanceTo(chicken.position);
+                    if (distance < 2) {
+                        // Hit!
+                        scene.remove(bullet);
+                        scene.remove(chicken);
+                        bullets.splice(bulletIndex, 1);
+                        chickens.splice(chickenIndex, 1);
+                        
+                        score++;
+                        
+                        console.log("Score:", score, "tripleShot:", tripleShot, "megaShot:", megaShot);
+                        
+                        // Check for upgrades
+                        if (score === 10 && tripleShot === false) {
+                            tripleShot = true;
+                            console.log("Triple shot unlocked! tripleShot:", tripleShot);
+                            showUpgradeNotification("TRIPLE SHOT UNLOCKED!", "Now shooting 3 bullets at once!");
+                        } else if (score === 40 && megaShot === false) {
+                            megaShot = true;
+                            tripleShot = false; // Mega shot replaces triple shot
+                            console.log("Mega shot unlocked! megaShot:", megaShot, "tripleShot:", tripleShot);
+                            showUpgradeNotification("💥 MEGA SHOT UNLOCKED! 💥", "Now shooting 5 bigger bullets!");
+                        }
+                        
+                        if (score >= 100) {
+                            victory();
+                        } else {
+                            // Spawn more chickens periodically
+                            if (score % 15 === 0) {
+                                spawnMoreChickens();
+                            }
+                        }
+                    }
+                });
+            });
+        }
+
+        function showUpgradeNotification(title, description) {
+            const notification = document.getElementById('upgradeNotification');
+            document.getElementById('upgradeText').textContent = title;
+            document.getElementById('upgradeDesc').textContent = description;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            
+            // Update progress bar
+            const progressPercentage = (score / 100) * 100;
+            document.getElementById('progressFill').style.width = progressPercentage + '%';
+            
+            // Update weapon status
+            let weaponStatus;
+            if (megaShot === true) {
+                weaponStatus = '💥🔫💥🔫💥 MEGA SHOT';
+            } else if (tripleShot === true) {
+                weaponStatus = '🔫🔫🔫 Triple Shot';
+            } else {
+                weaponStatus = '🔫 Single Shot';
+            }
+            document.getElementById('weaponStatus').textContent = weaponStatus;
+        }
+
+        function victory() {
+            gameEnded = true;
+            document.getElementById('victoryScreen').style.display = 'flex';
+            document.exitPointerLock();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (gameStarted && !gameEnded) {
+                updateChickens();
+                updateBullets();
+                updateUI();
+                
+                // Spawn more chickens if needed
+                if (Math.random() < 0.002 && chickens.length < 100) {
+                    spawnMoreChickens();
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Initialize the game when the page loads
+        window.addEventListener('load', function() {
+            console.log("Page loaded, initializing game...");
+            init();
+        });
+    </script>
+</body>
+</html>
